@@ -1,0 +1,32 @@
+Package: MartysCookbook
+Title: My book of tips & tricks for nice reports
+Version: 0.2.2
+Authors@R: 
+    person("Márton", "Kiss", email = "mrkmarton@gmail.com", role = c("aut", "cre"))
+Description: My book of tricks & tricks for nice reports.
+  Also unit tests, packages and such.
+License: MIT + file LICENSE
+Encoding: UTF-8
+VignetteBuilder: knitr
+LazyData: true
+RoxygenNote: 7.2.3
+Roxygen: list(markdown = TRUE)
+Depends:
+    R (>= 3.5.0),
+    ggplot2,
+    lubridate,
+    gtsummary,
+    dplyr,
+    knitr,
+    huxtable,
+    kableExtra,
+    report,
+    readxl,
+    formatR,
+    labelled,
+    here, 
+    pagedown, 
+    rmarkdown
+Suggests: 
+    testthat (>= 3.0.0),
+Config/testthat/edition: 3
