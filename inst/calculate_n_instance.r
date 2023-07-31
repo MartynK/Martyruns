@@ -22,6 +22,7 @@ table(data_all$stf)
 
 ITER_CRITICAL <- 3000
 data_sessions <- unique(data_all$start_time_fac)
+data_sessions <- sample(data_sessions,size=length(data_sessions))
 
 try({
   load( file = here::here("inst",
@@ -45,7 +46,7 @@ try({
 
 #####################
 
-n.cores <- parallel::detectCores() - 3 # 12 logical cores - 3 for other stuff
+n.cores <- parallel::detectCores() - 4 # 12 logical cores - 3 for other stuff
 
 #create the cluster
 my.cluster <- parallel::makeCluster(
@@ -66,9 +67,9 @@ foreach::getDoParWorkers()
 
 
 # Define the parameter bounds
-lower_bounds <- c(100,    0,  -.2,   0,  0,     60,100,50)  # Lower bound for 'c'
-upper_bounds <- c(600,   20,  0.1,  20,  2,     60,210,120) # Upper bound for 'c'
-start_vec    <- c(333,  1.47,-0.04, 6.8,0.2,     60,180,80)
+lower_bounds <- c(000,    0,  -.5,   0,  0,     60,100,0)  # Lower bound for 'c'
+upper_bounds <- c(100,    2,  0.2, 0.5,  1,     60,200,100) # Upper bound for 'c'
+start_vec    <- c( 20,    1, -0.1,0.25,0.5,     60,150,20)
 
 
 results <- foreach(
@@ -120,3 +121,4 @@ results <- foreach(
    
 }
 
+stopImplicitCluster()

@@ -13,7 +13,7 @@ return_the_predictions <- function(x, data_all = data_all) {
     par_fat_2=x[3],
     par_scale_agn=x[4],
     par_scale_fat=x[5],
-    list(coefs = c(x[6],x[7],x[8])
+    list(coefs = c(x[6],x[7]*(1-x[8]/100),x[7]*(x[8]/100))
     )
   )
   

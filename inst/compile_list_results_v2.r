@@ -1,4 +1,5 @@
 library(dplyr)
+library(ggplot2)
 
 tr_files <- list.files(here::here("inst",
                                   "training history"))
@@ -28,7 +29,7 @@ for (i in 1:length(tr_files)) {
   filename_vars <- strsplit(tools::file_path_sans_ext(tr_files[i]),"_")[[1]]
   
   guessed_pars$start_time_fac[i] <- filename_vars[1]
-  guessed_pars$iters[i] <-filename_vars[2]
+  guessed_pars$iters[i] <- as.numeric(filename_vars[2])
   
   
   try(silent=TRUE,{
@@ -67,7 +68,10 @@ for (i in 1:nrow(guessed_pars)) {
 
 guessed_pars <- guessed_pars %>% 
   mutate( iters = as.numeric(iters),
-          start_time_fac = as.factor(start_time_fac))
+          #start_time_fac = forcats::(start_time_fac)
+          )
+
+
 guessed_pars$dev_per_duration <- guessed_pars$dev / guessed_pars$duration
 guessed_pars <- left_join( guessed_pars,
   y = data_all %>% 
@@ -91,4 +95,5 @@ save( best_guesses, file = here::here("inst",
 
 
 
-#GGally::ggpairs(best_guesses[,5:15])
+#GGally::ggpairs(best_guesses[,c(3,6:15)]) +
+#   theme_bw()

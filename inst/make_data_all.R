@@ -15,7 +15,8 @@ data_all <- e %>%
     ))) %>%
   filter(actual_run == TRUE) %>%
   select(hr, speed, Time, start_time_fac, start_time_scaled) %>%
-  filter(complete.cases(.))
+  filter(complete.cases(.)) %>%
+  filter(as.character(start_time_fac) != "1469049250")
 
 rm(e)
 

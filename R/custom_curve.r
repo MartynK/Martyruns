@@ -6,10 +6,12 @@ custom_curve <- function( xmin = 0,
                           custom_coefs = c(100, 0.5, 1.3,0.7)) {
   
   dat_simp <- data.frame(
-    x = seq(0,1,length.out=5))
+    x = seq(0,1,length.out=10))
   dat_simp$y <- (dat_simp$x * 0.1)^2
   
-  mod <- lm( y ~ splines::ns(x,df=df), data = dat_simp)
+  
+  mod <- lm( y ~ splines2::iSpline(x, df = 2, degree = df, intercept = FALSE)
+             , data = dat_simp)
   
   mod$coefficients <- custom_coefs
   

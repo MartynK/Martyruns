@@ -1,3 +1,5 @@
+library(ggplot2)
+library(dplyr)
 
 for (file in 
      list.files(here::here("R"), pattern = "\\.[rR]$", full.names = TRUE)) {
@@ -6,37 +8,22 @@ for (file in
 
 
 source(here::here("inst","make_data_all.R"))
-load(here::here("inst","training history_compiled","results.Rdata"))
+load(here::here("inst","training history_compiled","best_guesses.Rdata"))
 
 
-GGally::ggpairs(best_guesses[,c(1:6,8:10,12)]) +
-  theme_bw()
+# GGally::ggpairs(best_guesses[,5:15]) +
+#   theme_bw()
 
-for (i in 1:length(results2)) {
-  
-  if (i == 1) {
-    resmat <- c(results2[[i]][2]$optimization$solution,
-                results2[[i]][2]$optimization$objective,
-                as.numeric(as.character(results2[[i]][1]$start_time_fac)))
-    
-  }  else {
-    resmat <- rbind(resmat,
-                    c(results2[[i]][2]$optimization$solution,
-                      results2[[i]][2]$optimization$objective,
-                      as.numeric(as.character(results2[[i]][1]$start_time_fac))))
-  }
-}
-resmat <- as.data.frame(resmat)
 
 pb <- txtProgressBar()
-for (i in 1:length(results2)) {
+for (i in 1:nrow(best_guesses)) {
   data_act <- data_all %>% 
-    filter(start_time_fac == results2[[i]][1]$start_time_fac) %>%
+    filter(as.character(start_time_fac) == best_guesses$start_time_fac[i]) %>%
     mutate(Time = as.numeric(Time))
   
   restable <- return_the_predictions(
     data_all = data_act,
-    x = as.numeric(as.character(resmat[i,1:(ncol(resmat)-1)]))
+    x = as.numeric(as.character(best_guesses[i,6:13]))
   )
   
   data_act <- left_join(data_act, 
@@ -49,13 +36,13 @@ for (i in 1:length(results2)) {
   } else {
     data_out <- bind_rows( data_out, data_act)
   }
-  setTxtProgressBar(pb, i/nrow(resmat))
+  setTxtProgressBar(pb, i/nrow(best_guesses))
 }
 close(pb)
 
 cor(data_out$hr,data_out$hr_pred, use = "pairwise.complete.obs")
 cor(data_out$hr,data_out$hr_pred, use = "pairwise.complete.obs")^2
-downsamp <- sample(1:nrow(data_out),size = 200000)
+downsamp <- sample(1:nrow(data_out),size = min(200000,nrow(data_out)))
 
 data_out[downsamp,] %>%
   ggplot( aes(x=hr,y=hr_pred
@@ -66,7 +53,14 @@ data_out[downsamp,] %>%
     geom_smooth(color="green") +
     geom_abline(slope=1,intercept=0,color="red")
 
-# data_out %>%
+data_predicted <- data_out
+
+save( data_predicted, file = here::here("inst",
+                                        "training history_compiled",
+                                        "predictions.Rdata"))
+
+# data_predicted %>%
+#   filter( start_time_fac == "1453037625") %>%
 #   ggplot(aes(x=Time,y=hr)) +
 #     theme_bw() +
 #     geom_point() +

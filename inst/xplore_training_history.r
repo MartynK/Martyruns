@@ -3,7 +3,6 @@ library(dplyr)
 tr_files <- list.files(here::here("inst",
                                   "training history"))
 
-
 pb <- txtProgressBar()
 for (i in 1:length(tr_files)) {
   
@@ -46,12 +45,10 @@ close(pb)
 
 sessions <- unique(out$start_time_fac)
 
-
-
 out %>%
-  .[sample(1:nrow(out),1000000),] %>%
+  .[sample(1:nrow(out),min(1000000,nrow(out))),] %>%
   ggplot(aes(x = iter, y = log(dev_min), group = start_time_fac,
              color = start_time_fac)) +
   theme_bw() +
   theme(legend.position = "none") +
-  geom_line(alpha=0.1)
+  geom_line(alpha=0.91)

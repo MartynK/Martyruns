@@ -1,4 +1,3 @@
-library(manipulate)
 library(ggplot2)
 library(dplyr)
 library(splines)
@@ -17,9 +16,6 @@ for (file in
 
 
 source(here::here("inst","make_data_all.R"))
-
-#load(here::here("inst","training history_compiled","results.Rdata"))
-
 load(here::here("inst","training history_compiled","best_guesses.Rdata"))
 
 
@@ -42,7 +38,7 @@ for (i in 1:nrow(best_guesses)) {
   
   limits <- 
     data_all %>% 
-    filter( start_time_fac == best_guesses$start_time_fac[i]) %>% 
+    filter( as.character(start_time_fac) == best_guesses$start_time_fac[i]) %>% 
     .$speed %>%
     quantile(probs=c(0.05,0.95))
   
@@ -79,43 +75,52 @@ all_guessed_curves %>%
 
 
 
-SCALE_WINDOW     <- 0.1 # this period is treated as a 'distance' of 1, weight decays to 10%
+SCALE_WINDOW     <- 0.05 # this period is treated as a 'distance' of 1, weight decays to 10%
 
-times_of_interest <- seq(0,1,length.out = 11)
+times_of_interest <- seq(0,1,length.out = 21)
 
 for (i in 1:length(times_of_interest)) {
 
   all_guessed_curves <- all_guessed_curves %>%
-    mutate( weight = Tricube_mod(abs(times_of_interest[i] - start_time_scaled)/SCALE_WINDOW))
+    mutate( weight = Tricube_mod(abs(times_of_interest[i] - 
+                                       start_time_scaled)/SCALE_WINDOW))
   
-  mod <- lm( hr_eq ~ ns(speed,df=3), 
-             data = all_guessed_curves, 
-             weights = all_guessed_curves$weight)
-  
-  pr <- expand.grid( speed = seq(0,12,length.out = 1000),
-                     start_time_scaled = times_of_interest[i])
-  pr$pr <- predict(mod, newdata = pr)
-  
-  evaled_speeds <- all_guessed_curves %>% 
-     filter( weight > 0.1) %>% 
-     .$speed %>% summary() %>% 
-     .[c(1,6)]
-  if( is.na(evaled_speeds[1]) == TRUE) {
-    evaled_speeds <- c(0,0)
-  }
-  
-  pr$speed_recorded <- sapply(1:nrow(pr), function(x){
-    if(pr$speed[x] >= evaled_speeds[1] &  pr$speed[x] <= evaled_speeds[2]){
-      TRUE
-    } else {
-      FALSE
+  if (sum(all_guessed_curves$weight)> 0) {
+    mod <- lm( hr_eq ~ splines2::mSpline(speed, 
+                                         df = 3 
+                                         ,Boundary.knots=c(4,12)
+                                         #,degree = 3, 
+                                         #intercept = TRUE
+                                         ), 
+               data = all_guessed_curves, 
+               weights = all_guessed_curves$weight)
+    
+    pr <- expand.grid( speed = seq(0,12,length.out = 1000),
+                       start_time_scaled = times_of_interest[i])
+    pr$pr <- predict(mod, newdata = pr)
+    
+    evaled_speeds <- all_guessed_curves %>% 
+      filter( weight > 0.1) %>% 
+      .$speed %>% summary() %>% 
+      .[c(1,6)]
+    if( is.na(evaled_speeds[1]) == TRUE) {
+      evaled_speeds <- c(0,0)
     }
-  })
-  
-  if ( i == 1) {
-    pr_out <- pr
-  } else {
-    pr_out <- bind_rows( pr_out, pr)
+    
+    pr$speed_recorded <- sapply(1:nrow(pr), function(x){
+      if(pr$speed[x] >= evaled_speeds[1] &  pr$speed[x] <= evaled_speeds[2]){
+        TRUE
+      } else {
+        FALSE
+      }
+    })
+    
+    if ( i == 1) {
+      pr_out <- pr
+    } else {
+      pr_out <- bind_rows( pr_out, pr)
+    }
+
   }
 
 }
