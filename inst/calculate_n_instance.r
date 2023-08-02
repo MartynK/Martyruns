@@ -117,7 +117,9 @@ results <- foreach(
                   ITER_CRITICAL,
                   ".rds")))
  
- return(res)
+ rm(res)
+ #gc()
+ return(NULL)
    
 }
 

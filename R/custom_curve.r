@@ -9,6 +9,7 @@ custom_curve <- function( xmin = 0,
     x = seq(0,1,length.out=10))
   dat_simp$y <- (dat_simp$x * 0.1)^2
   
+  df <- length(custom_coefs) - 1
   
   mod <- lm( y ~ splines2::iSpline(x, df = 2, degree = df, intercept = FALSE)
              , data = dat_simp)

@@ -40,7 +40,7 @@ for (i in 1:nrow(best_guesses)) {
     data_all %>% 
     filter( as.character(start_time_fac) == best_guesses$start_time_fac[i]) %>% 
     .$speed %>%
-    quantile(probs=c(0.05,0.95))
+    quantile(probs=c(0.1,0.9))
   
   guessed_curve <- guessed_curve %>% filter( x <= limits[2],
                                              x >= limits[1])
@@ -71,9 +71,11 @@ all_guessed_curves %>%
              color = start_time_scaled, 
              group = start_time_fac)) +
    theme_bw() +
-   geom_line()
+   geom_line(alpha=.2)
 
-
+save( all_guessed_curves, file = here::here( "inst", 
+                                             "training history_compiled",
+                                             "al_guessed_curves.Rdata"))
 
 SCALE_WINDOW     <- 0.05 # this period is treated as a 'distance' of 1, weight decays to 10%
 
