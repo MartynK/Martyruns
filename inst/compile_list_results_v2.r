@@ -92,8 +92,16 @@ save( best_guesses, file = here::here("inst",
                                       "best_guesses.Rdata"))
 
 
-
-
-
 #GGally::ggpairs(best_guesses[,c(3,6:15)]) +
 #   theme_bw()
+
+
+# GGally::ggpairs(best_guesses %>% filter(iters == 1000) %>% .[,c(3,6:15)]) +
+#   theme_bw()
+
+# library(fpc)
+# clust <- dbscan( best_guesses[,c(6:10,12:13)], eps = 7, MinPts = 10,showplot=TRUE)
+# clust$cluster
+# clust
+# plot(clust,best_guesses[,c(6:10,12:13)])
+

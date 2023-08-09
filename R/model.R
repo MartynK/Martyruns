@@ -5,11 +5,11 @@ model <- function(time, state, parameters, speeds, times_series, hr_eq) {
   fatigue <- state[2]
   
   
-  par_agn_ch <- parameters$par_agn_ch
-  par_fat_1  <- parameters$par_fat_1
-  par_fat_2  <- parameters$par_fat_2
-  par_scale_agn  <- parameters$par_scale_agn
-  par_scale_fat  <- parameters$par_scale_fat
+  par_agn_ch <- parameters$par_agn_ch # HR responsiveness
+  par_fat_1  <- parameters$par_fat_1  # Fatigue accumulation
+  par_fat_2  <- parameters$par_fat_2  # Minimum fatigue drain (?)
+  par_scale_agn  <- parameters$par_scale_agn # HR change delta component
+  par_scale_fat  <- parameters$par_scale_fat # HR change fatigue component
   
   
   # Import time series type of parameter

@@ -77,9 +77,9 @@ save( all_guessed_curves, file = here::here( "inst",
                                              "training history_compiled",
                                              "al_guessed_curves.Rdata"))
 
-SCALE_WINDOW     <- 0.05 # this period is treated as a 'distance' of 1, weight decays to 10%
+SCALE_WINDOW     <- 0.15 # this period is treated as a 'distance' of 1, weight decays to 10%
 
-times_of_interest <- seq(0,1,length.out = 21)
+times_of_interest <- seq(0,1,length.out = 11)
 
 for (i in 1:length(times_of_interest)) {
 

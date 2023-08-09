@@ -20,7 +20,7 @@ data_all <-
 
 table(data_all$stf)
 
-ITER_CRITICAL <- 3000
+ITER_CRITICAL <- 300
 data_sessions <- unique(data_all$start_time_fac)
 data_sessions <- sample(data_sessions,size=length(data_sessions))
 
@@ -67,9 +67,9 @@ foreach::getDoParWorkers()
 
 
 # Define the parameter bounds
-lower_bounds <- c(000,    0,  -.5,   0,  0,     60,100,0)  # Lower bound for 'c'
-upper_bounds <- c(100,    2,  0.2, 0.5,  1,     60,200,100) # Upper bound for 'c'
-start_vec    <- c( 20,    1, -0.1,0.25,0.5,     60,150,20)
+lower_bounds <- c(100,    1,   -3,    0,  0,     60,125,0)  # Lower bound for 'c'
+upper_bounds <- c(300,    5,    0,  1.0, 20,     60,250,50) # Upper bound for 'c'
+start_vec    <- c(168,2.719,  -.7, 0.35,  4,     60,150,0)
 
 
 results <- foreach(

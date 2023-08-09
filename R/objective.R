@@ -12,7 +12,12 @@ objective <- function(x, data_all = data_all, quiet = FALSE) {
     .$hr_pred
   
   # Calculating the deviance
-  dev <- sum((hrs_bare - data_all$hr)^2)
+  dev <- sum(abs(hrs_bare - data_all$hr)^2) # !
+  
+  # cor. <- cor( hrs_bare, data_all$hr, use = "pairwise.complete.obs")
+  # 
+  # # penalizing heavily low corellation (per session!)
+  # dev <- dev / (abs(cor.) + 0.01)
   
   # parsing the results *into the parent environment!*
   if (quiet == FALSE) {
