@@ -29,7 +29,7 @@ for (i in 1:nrow(best_guesses)) {
   
   data_act <- left_join(data_act, 
                         restable %>% 
-                          dplyr::select(c(Time, hr_pred,fatigue_pred)),
+                          dplyr::select(c(Time, hr_pred,prev_dt)),
                         by="Time")
   
   if (i == 1) {
@@ -46,10 +46,11 @@ downsamp <- sample(1:nrow(data_out),size = min(200000,nrow(data_out)))
 data_out[downsamp,] %>%
   ggplot( aes(x=hr,y=hr_pred
               #,group=start_time_fac
+              ,color = start_time_fac
               )) +
     theme_bw() +
+    theme(legend.position = "none") +
     geom_point(alpha=0.1,size=.5) +
-    geom_smooth(color="green") +
     geom_abline(slope=1,intercept=0,color="red")
 
 data_predicted <- data_out
@@ -73,7 +74,7 @@ data_predicted %>%
     geom_point(mapping=aes(y=hr_pred),color = "red") +
     facet_wrap(facets="start_time_scaled",scales="free_x")
 
-cor(data_out$hr,data_out$hr_pred, use = "pairwise.complete.obs")
-cor(data_out$hr,data_out$hr_pred, use = "pairwise.complete.obs")^2
+cor(data_predicted$hr,data_predicted$hr_pred, use = "pairwise.complete.obs")
+cor(data_predicted$hr,data_predicted$hr_pred, use = "pairwise.complete.obs")^2
 
 

@@ -1,6 +1,7 @@
 # History files
 .Rhistory
 .Rapp.history
+*-L*.Rhistory
 
 # Session Data files
 .RData
@@ -37,3 +38,13 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Secrets and API keys
+inst/iter_intervals_icu/secrets/
+
+# CSV data
+inst/extdata/csv_data/
+
+# Training history files
+inst/training history/
+inst/training_history_lasso/

@@ -73,7 +73,8 @@ manipulate({
     ggplot(aes(x =x, y = y)) +
     theme_bw() +
     geom_line() +
-    scale_y_continuous(breaks = c(100,120,140,160,180,200,220))
+    scale_y_continuous(breaks = c(100,120,140,160,180,200,220),
+                       limits = c(0,220))
 }, 
 coef1 = slider(0, 300, initial = 60), 
 coef2 = slider(0, 200, initial = 160), 

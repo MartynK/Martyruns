@@ -11,11 +11,9 @@ guessed_pars <- data.frame(
   duration = rep(NA, length(tr_files)),
   dev = rep(NA, length(tr_files)),
   
-  par_agn_ch = rep(NA, length(tr_files)),
-  par_fat_1  = rep(NA, length(tr_files)),
-  par_fat_2  = rep(NA, length(tr_files)),
-  par_scale_agn  = rep(NA, length(tr_files)),
-  par_scale_fat  = rep(NA, length(tr_files)),
+  par_resp = rep(NA, length(tr_files)),
+  par_ma  = rep(NA, length(tr_files)),
+  par_ar  = rep(NA, length(tr_files)),
   coef1 = rep(NA, length(tr_files)),
   coef2 = rep(NA, length(tr_files)),  
   coef3 = rep(NA, length(tr_files))
@@ -39,14 +37,12 @@ for (i in 1:length(tr_files)) {
        
     guessed_pars$dev[i]        <- act_chunk$optimization$objective
     
-    guessed_pars$par_agn_ch[i]    <- act_chunk$optimization$solution[1]
-    guessed_pars$par_fat_1[i]     <- act_chunk$optimization$solution[2]
-    guessed_pars$par_fat_2[i]     <- act_chunk$optimization$solution[3]
-    guessed_pars$par_scale_agn[i] <- act_chunk$optimization$solution[4]
-    guessed_pars$par_scale_fat[i] <- act_chunk$optimization$solution[5]
-    guessed_pars$coef1[i] <- act_chunk$optimization$solution[6]
-    guessed_pars$coef2[i] <- act_chunk$optimization$solution[7]    
-    guessed_pars$coef3[i] <- act_chunk$optimization$solution[8]
+    guessed_pars$par_resp[i]    <- act_chunk$optimization$solution[1]
+    guessed_pars$par_ma[i]     <- act_chunk$optimization$solution[2]
+    guessed_pars$par_ar[i]     <- act_chunk$optimization$solution[3]
+    guessed_pars$coef1[i] <- act_chunk$optimization$solution[4]
+    guessed_pars$coef2[i] <- act_chunk$optimization$solution[5]    
+    guessed_pars$coef3[i] <- act_chunk$optimization$solution[6]
 
   })
   
@@ -92,16 +88,16 @@ save( best_guesses, file = here::here("inst",
                                       "best_guesses.Rdata"))
 
 
-#GGally::ggpairs(best_guesses[,c(3,6:15)]) +
+#GGally::ggpairs(best_guesses[,c(3,6:13)]) +
 #   theme_bw()
 
 
-# GGally::ggpairs(best_guesses %>% filter(iters == 1000) %>% .[,c(3,6:15)]) +
+# GGally::ggpairs(best_guesses %>% filter(iters == 1000) %>% .[,c(3,6:13)]) +
 #   theme_bw()
 
 # library(fpc)
-# clust <- dbscan( best_guesses[,c(6:10,12:13)], eps = 7, MinPts = 10,showplot=TRUE)
+# clust <- dbscan( best_guesses[,c(7:8,10:11)], eps = 10, MinPts = 5,showplot=TRUE)
 # clust$cluster
 # clust
-# plot(clust,best_guesses[,c(6:10,12:13)])
+# plot(clust,best_guesses[,c(7:8,10:13)])
 

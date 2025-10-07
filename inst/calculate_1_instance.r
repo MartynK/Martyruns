@@ -19,9 +19,9 @@ data_all <-
     filter( start_time_fac == "1596369130")
 
 # Define the parameter bounds
-lower_bounds <- c(100,    0,  -.2,   0,  0,     60,100,50)  # Lower bound for 'c'
-upper_bounds <- c(600,   20,  0.1,  20,  2,     60,210,120) # Upper bound for 'c'
-start_vec    <- c(333,  1.47,-0.04, 6.8,0.2,     60,180,80)
+lower_bounds <- c(0,   0,   0,     60,100,00)  # Lower bound for 'c'
+upper_bounds <- c(200, 100, 100,     60,250,120) # Upper bound for 'c'
+start_vec    <- c(16.9,25.5,6, 60,185,0)
 
 
 # Define the optimization problem & solving it
@@ -36,7 +36,7 @@ microbenchmark::microbenchmark({
     ub = upper_bounds,          # Upper bounds for the parameters
     opts = list(
       algorithm = "NLOPT_GN_MLSL",  # Optimization algorithm (e.g., COBYLA)
-      maxeval = 10,             # Maximum number of function evaluations
+      maxeval = 100,             # Maximum number of function evaluations
       ftol_rel = 1e-2,            # Relative function tolerance for convergence
       print_level = 3,
       local_opts = list(algorithm = "NLOPT_LN_BOBYQA")
@@ -60,7 +60,7 @@ points(hrs$Time, hrs$hr_pred, col = "red")
 cor( hrs$hr, hrs$hr_pred, use = "pairwise.complete.obs")
 cor( hrs$hr, hrs$hr_pred, use = "pairwise.complete.obs")^2
 
-plot(res$fatigue_pred)
+#plot(hrs$prev_dt)
 
 # # "training history" should have all the goodies
 # training_history <- as.data.frame(training_history) %>%

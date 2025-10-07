@@ -1,29 +1,25 @@
 
-model <- function(time, state, parameters, speeds, times_series, hr_eq) {
+model <- function(time, state, parameters, times_series, resps, hr_eq) {
   # Unpack state variables and parameters
   hr      <- state[1]
-  fatigue <- state[2]
+  prev    <- state[2]
   
-  
-  par_agn_ch <- parameters$par_agn_ch # HR responsiveness
-  par_fat_1  <- parameters$par_fat_1  # Fatigue accumulation
-  par_fat_2  <- parameters$par_fat_2  # Minimum fatigue drain (?)
-  par_scale_agn  <- parameters$par_scale_agn # HR change delta component
-  par_scale_fat  <- parameters$par_scale_fat # HR change fatigue component
-  
-  
+  par_scale <- parameters$par_scale  
+  par_ma  <- parameters$par_ma  # 
+  par_ar  <- parameters$par_ar  # 
+
+
   # Import time series type of parameter
-  speed_function <- approxfun(times_series, speeds, rule = 2)
-  speed <- speed_function(time)
   hr_eq_function <- approxfun(times_series, hr_eq, rule = 2)
   hr_eq_act <- hr_eq_function(time)
   
+  
+  resp_act <- log(abs(hr_eq_act-hr)+1)*par_scale*sign(hr_eq_act-hr)
+  
   # Define the system of ODEs
-  agn_change <- tanh((hr_eq_act - hr)/par_agn_ch)
-  fatigue_dt <- max( tanh(fatigue+agn_change*par_fat_1),par_fat_2) - fatigue
-  hr_dt      <- agn_change * par_scale_agn + fatigue_dt * par_scale_fat
-  
-  
+  hr_dt   <- resp_act * par_ma + prev * par_ar 
+  prev_dt <- hr_dt - prev
+
   # Return the derivatives as a list
-  return(list(c(hr_dt,fatigue_dt)))
+  return(list(c(hr_dt,prev_dt)))
 }

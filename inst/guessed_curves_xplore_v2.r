@@ -103,7 +103,7 @@ for (i in 1:floor(length(sess_s)/SESS_PER_POINT)) {
 plot(point_scales$midpt,point_scales$scale)
 point_scales$id <- 1:nrow(point_scales)
 
-ITER_CRITICAL <- 300
+ITER_CRITICAL <- 100
 lower_bounds <- c(100,0,0)
 upper_bounds <- c(100,5,5)
 
@@ -212,7 +212,7 @@ pr %>%
 
 
 pr %>%
-  filter(midpt >= 0.95,
+  filter(midpt >= 0.97,
          dp > 0) %>%
   ggplot(aes( x = speed, y = pr, 
               color = start_time_dat, 
@@ -220,14 +220,14 @@ pr %>%
   theme_bw() +
   geom_line(size = 1.5) +
   geom_line( data = all_guessed_curves %>%
-                filter(start_time_scaled >= 0.95),
+                filter(start_time_scaled >= 0.97),
               mapping = aes( y = hr_eq,
                              group = start_time_scaled),
               size = .175,
               alpha = 1.0,
               linetype = "dashed"
              ) +
-  scale_y_continuous(limits = c(0,350))
+  scale_y_continuous(limits = c(0,250),breaks = c(100,120,137,150,170,180,200,220))
 
 
 

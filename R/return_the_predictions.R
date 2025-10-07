@@ -8,12 +8,12 @@ return_the_predictions <- function(x, data_all = data_all) {
   
   # Constructing the "parameters" var to be passed from the 'x' vector given
   parameters <- c(
-    par_agn_ch=x[1],
-    par_fat_1=x[2],
-    par_fat_2=x[3],
-    par_scale_agn=x[4],
-    par_scale_fat=x[5],
-    list(coefs = c(x[6],x[7]*(1-x[8]/100),x[7]*(x[8]/100))
+    
+    par_scale = x[1]/100, # magnitude of the HR response (log) 
+    par_ma  = x[2]/100,  # between 0-1
+    par_ar  = x[3]/100,  # between 0-1
+    
+    list(coefs = c(x[4],x[5]*(1-x[6]/100),x[5]*(x[6]/100))
     )
   )
   
@@ -46,3 +46,5 @@ return_the_predictions <- function(x, data_all = data_all) {
   
   return(hrs)
 }
+
+
