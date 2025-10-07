@@ -242,41 +242,42 @@ data_all <- run_streams_data %>%
   mutate(
     hr = as.numeric(heartrate),
     speed = round(as.numeric(velocity_smooth) * 3.6, 1),  # Convert m/s to km/h and round to 0.1
-    date = as.POSIXct(start_date, format = "%Y-%m-%dT%H:%M:%S", tz = "UTC")
+    date = ymd_hms(start_date, tz = "UTC")  # Use lubridate to parse ISO8601 datetime
   ) %>%
-  filter(!is.na(speed), !is.na(hr))  # Remove NA values
+  filter(!is.na(speed), !is.na(hr), !is.na(date))  # Remove NA values
 
 # Extract year and ISO week
 data_all$year <- year(data_all$date)
 data_all$week <- isoweek(data_all$date)
 
-# Define date range
-min_date <- ymd(paste0("2024-12-01"))
+# Define date range based on actual data
+min_date <- data_all %>%
+  .$date %>%
+  min(na.rm = TRUE) %>%
+  floor_date(unit = "week")
 
-# Calculate weeks since min_date
-wks <- difftime(today(), min_date, units = "weeks") %>%
+max_date <- data_all %>%
+  .$date %>%
+  max(na.rm = TRUE) %>%
+  ceiling_date(unit = "week")
+
+# Calculate weeks between min and max
+wks <- difftime(max_date, min_date, units = "weeks") %>%
   as.numeric() %>%
   ceiling()
 
-max_date <- today()
+cat(sprintf("Date range: %s to %s (%d weeks)\n", min_date, max_date, wks))
 
 # Calculate maximum width for normalization
 grps <-
   data_all %>%
-  filter(date >= min_date, date < max_date) %>%
   group_by(year, week, speed) %>%
   summarise(n = n(), .groups = "drop")
 
 mx_width <- grps$n %>% max()
 
-# Get first date
-date_first <-
-  data_all %>%
-  filter(date >= min_date) %>%
-  arrange(date) %>%
-  .[1,] %>%
-  .$date %>%
-  floor_date(., unit = "week")
+# Use min_date as the starting point
+date_first <- min_date
 
 # Transform data for visualization
 cat("Transforming data for histogram visualization...\n")
@@ -346,7 +347,7 @@ current_points <- nrow(data_trf)
 cat(sprintf("\nCurrent points: %d\n", current_points))
 
 if (current_points > MAX_POINTS_TARGET) {
-  nth <- ceiling(current_points / MAX_POINTS_TARGET)
+  nth <- floor(current_points / MAX_POINTS_TARGET)
   cat(sprintf("Downsampling: selecting every %dth point for rendering\n", nth))
 
   data_trf <- data_trf %>%
@@ -368,7 +369,7 @@ data_trf %>%
   scale_colour_gradient2(low = "blue", mid = "green", high = "red",
                          limits = c(120, 190),
                          midpoint = 157) +
-  scale_y_continuous(breaks = c(5, 6, 7, 8, 9, 12)) +
+  scale_y_continuous(breaks = c(5, 6, 7, 8, 9, 10, 12, 17)) +
   scale_x_continuous(breaks = seq(0, wks, length.out = 8),
                      labels = seq(min_date, max_date, length.out = 8)) +
   labs(x = "", title = "Speed vs Heart Rate Distribution by Week") +
