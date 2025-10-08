@@ -82,6 +82,11 @@ ui <- fluidPage(
                   selected = "km/h"),
 
       h4("Display Settings"),
+      selectInput("y_variable",
+                  "Y-axis Variable:",
+                  choices = c("Speed" = "speed", "Heart Rate" = "hr"),
+                  selected = "speed"),
+
       checkboxInput("reverse_y",
                     "Reverse Y-axis",
                     value = TRUE),
@@ -122,6 +127,10 @@ ui <- fluidPage(
     mainPanel(
       width = 9,
       plotOutput("main_plot", height = "700px"),
+
+      hr(),
+
+      plotOutput("scatter_plot", height = "500px"),
 
       hr(),
 
@@ -311,9 +320,22 @@ server <- function(input, output, session) {
 
       incProgress(0.1, detail = "Calculating max width")
 
+      # Determine which variable to bin and which to color
+      if (input$y_variable == "speed") {
+        bin_var <- "speed"
+        color_var <- "hr"
+        bin_width <- 0.1
+        bin_tolerance <- 0.05
+      } else {
+        bin_var <- "hr"
+        color_var <- "speed"
+        bin_width <- 1  # 1 bpm bins for HR
+        bin_tolerance <- 0.5
+      }
+
       # Calculate maximum width for normalization
       grps <- data_all %>%
-        group_by(period, speed) %>%
+        group_by(period, !!sym(bin_var)) %>%
         summarise(n = n(), .groups = "drop")
 
       mx_width <- max(grps$n)
@@ -329,35 +351,47 @@ server <- function(input, output, session) {
 
         if (nrow(data_chnk) == 0) next
 
-        # Get min/max speeds and create bins
-        speed_range <- data_chnk %>%
-          filter(!is.na(speed)) %>%
-          .$speed %>%
+        # Get min/max for binning variable and create bins
+        var_range <- data_chnk %>%
+          filter(!is.na(!!sym(bin_var))) %>%
+          pull(!!sym(bin_var)) %>%
           range()
 
-        if (any(is.infinite(speed_range))) next
+        if (any(is.infinite(var_range))) next
 
-        speed_bins <- seq(floor(speed_range[1] * 10) / 10,
-                          ceiling(speed_range[2] * 10) / 10,
-                          by = 0.1)
+        var_bins <- seq(floor(var_range[1] / bin_width) * bin_width,
+                        ceiling(var_range[2] / bin_width) * bin_width,
+                        by = bin_width)
 
-        for (j in speed_bins) {
+        for (j in var_bins) {
           act_data <- data_chnk %>%
-            filter(!is.na(speed), abs(speed - j) < 0.05)
+            filter(!is.na(!!sym(bin_var)), abs(!!sym(bin_var) - j) < bin_tolerance)
 
           if (nrow(act_data) == 0) next
 
+          # Sort by the color variable
+          sorted_color <- act_data %>%
+            pull(!!sym(color_var)) %>%
+            { replace(., is.na(.), mean(., na.rm = TRUE)) } %>%
+            sort()
+
           act_out <- tibble(
-            speed = j,
+            bin_value = j,
             period = i,
-            hr = act_data %>%
-              .$hr %>%
-              { replace(., is.na(.), mean(., na.rm = TRUE)) } %>%
-              sort(),
+            color_value = sorted_color,
             act_x = seq(-nrow(act_data) / mx_width / 2 + i,
                         nrow(act_data) / mx_width / 2 + i,
                         length.out = nrow(act_data))
           )
+
+          # Add named columns for speed and hr
+          if (input$y_variable == "speed") {
+            act_out$speed <- j
+            act_out$hr <- sorted_color
+          } else {
+            act_out$hr <- j
+            act_out$speed <- sorted_color
+          }
 
           if (is.null(data_trf)) {
             data_trf <- act_out
@@ -386,14 +420,15 @@ server <- function(input, output, session) {
       # Calculate quantiles per period if requested
       quantiles_data <- NULL
       if (input$show_quantiles && !is.null(data_trf) && nrow(data_trf) > 0) {
+        quant_var <- if (input$y_variable == "speed") "speed" else "hr"
         quantiles_data <- data_trf %>%
           group_by(period) %>%
           summarise(
-            p10 = quantile(speed, 0.10, na.rm = TRUE),
-            q1 = quantile(speed, 0.25, na.rm = TRUE),
-            median = quantile(speed, 0.5, na.rm = TRUE),
-            q3 = quantile(speed, 0.75, na.rm = TRUE),
-            p90 = quantile(speed, 0.90, na.rm = TRUE),
+            p10 = quantile(!!sym(quant_var), 0.10, na.rm = TRUE),
+            q1 = quantile(!!sym(quant_var), 0.25, na.rm = TRUE),
+            median = quantile(!!sym(quant_var), 0.5, na.rm = TRUE),
+            q3 = quantile(!!sym(quant_var), 0.75, na.rm = TRUE),
+            p90 = quantile(!!sym(quant_var), 0.90, na.rm = TRUE),
             .groups = "drop"
           )
       }
@@ -430,23 +465,41 @@ server <- function(input, output, session) {
     pd <- processed_data()
     data_trf <- pd$data
 
-    # Y-axis label
-    y_label <- if (input$speed_units == "m/s") "Speed (m/s)" else "Speed (km/h)"
+    # Determine plotting variables based on y_variable selection
+    if (input$y_variable == "speed") {
+      y_var <- "speed"
+      color_var <- "hr"
+      y_label <- if (input$speed_units == "m/s") "Speed (m/s)" else "Speed (km/h)"
+      color_label <- "Heart Rate"
+      color_limits <- c(120, 190)
+      color_midpoint <- 157
+      plot_title <- sprintf("Speed vs Heart Rate Distribution (%d-day periods)", input$period_length)
+    } else {
+      y_var <- "hr"
+      color_var <- "speed"
+      y_label <- "Heart Rate (bpm)"
+      color_label <- if (input$speed_units == "m/s") "Speed (m/s)" else "Speed (km/h)"
+      # Speed color scale: green at 7.5 km/h (or 7.5/3.6 m/s)
+      speed_midpoint <- if (input$speed_units == "m/s") 7.5 / 3.6 else 7.5
+      color_limits <- c(min(data_trf$speed, na.rm = TRUE), max(data_trf$speed, na.rm = TRUE))
+      color_midpoint <- speed_midpoint
+      plot_title <- sprintf("Heart Rate vs Speed Distribution (%d-day periods)", input$period_length)
+    }
 
     # Create plot
-    p <- ggplot(data_trf, aes(x = act_x, y = speed,
-                              group = paste0(speed, period),
-                              color = hr)) +
+    p <- ggplot(data_trf, aes(x = act_x, y = !!sym(y_var),
+                              group = paste0(!!sym(y_var), period),
+                              color = !!sym(color_var))) +
       geom_point(alpha = 0.33) +
       theme_minimal() +
       scale_colour_gradient2(low = "blue", mid = "green", high = "red",
-                             limits = c(120, 190),
-                             midpoint = 157) +
+                             limits = color_limits,
+                             midpoint = color_midpoint) +
       scale_x_continuous(breaks = seq(0, pd$n_periods, length.out = 8),
                          labels = format(seq(pd$min_date, pd$max_date, length.out = 8), "%Y-%m-%d")) +
       labs(x = "", y = y_label,
-           title = sprintf("Speed vs Heart Rate Distribution (%d-day periods)", input$period_length),
-           color = "Heart Rate") +
+           title = plot_title,
+           color = color_label) +
       theme(legend.position = "bottom",
             text = element_text(size = 12))
 
@@ -471,6 +524,80 @@ server <- function(input, output, session) {
     }
 
     p
+  })
+
+  # Scatter plot: Speed vs Heart Rate with smooth
+  output$scatter_plot <- renderPlot({
+    req(processed_data())
+
+    pd <- processed_data()
+
+    # Get raw data with speed caps applied
+    scatter_data <- db_data() %>%
+      mutate(
+        hr = as.numeric(heartrate),
+        speed_ms = as.numeric(velocity_smooth),
+        date = ymd_hms(start_date, tz = "UTC")
+      ) %>%
+      filter(!is.na(speed_ms), !is.na(hr), !is.na(date))
+
+    # Filter by minimum session date
+    min_date_filter <- ymd(input$min_session_date, tz = "UTC")
+    scatter_data <- scatter_data %>%
+      group_by(activity_id) %>%
+      filter(any(date >= min_date_filter)) %>%
+      ungroup()
+
+    # Add noise to old watch data (before 2025-04-14)
+    old_watch_cutoff <- ymd("2025-04-14", tz = "UTC")
+    scatter_data <- scatter_data %>%
+      mutate(
+        speed_ms = ifelse(date < old_watch_cutoff,
+                         speed_ms + rnorm(n(), 0, 0.15),
+                         speed_ms)
+      )
+
+    # Convert speed to km/h
+    scatter_data$speed_kmh <- scatter_data$speed_ms * 3.6
+
+    # Apply upper cap
+    scatter_data$speed_kmh <- pmin(scatter_data$speed_kmh, input$upper_cap)
+
+    # Filter by minimum speed
+    scatter_data <- scatter_data %>%
+      filter(speed_kmh >= input$min_speed)
+
+    # Select units
+    if (input$speed_units == "m/s") {
+      scatter_data$speed <- scatter_data$speed_ms
+      scatter_data$speed <- pmin(scatter_data$speed, input$upper_cap / 3.6)
+      scatter_data <- scatter_data %>% filter(speed >= input$min_speed / 3.6)
+    } else {
+      scatter_data$speed <- scatter_data$speed_kmh
+    }
+
+    # Random downsample to max_points
+    if (nrow(scatter_data) > input$max_points) {
+      scatter_data <- scatter_data %>%
+        slice_sample(n = input$max_points)
+    }
+
+    # X-axis label
+    x_label <- if (input$speed_units == "m/s") "Speed (m/s)" else "Speed (km/h)"
+
+    # Create scatter plot with date coloring
+    ggplot(scatter_data, aes(x = speed, y = hr, color = date)) +
+      geom_point(alpha = 0.3, size = 0.8) +
+      geom_smooth(method = "loess", aes(group = 1), color = "red", se = TRUE, linewidth = 1.2) +
+      geom_smooth(method = "lm", aes(group = 1), color = "blue", se = FALSE, linewidth = 1, linetype = "dashed") +
+      scale_y_continuous(limits = c(100, 200), breaks = seq(100, 200, by = 10)) +
+      scale_color_gradient(low = "gray80", high = "black") +
+      theme_minimal() +
+      labs(x = x_label, y = "Heart Rate (bpm)",
+           title = "Speed vs Heart Rate (Scatter with Smooth)",
+           color = "Date") +
+      theme(text = element_text(size = 12),
+            legend.position = "bottom")
   })
 }
 
