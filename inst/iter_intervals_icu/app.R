@@ -11,6 +11,33 @@ if (!file.exists(db_file)) {
 }
 load(db_file)
 
+# Load only the first 30 most recent activities by default
+initial_n_activities <- 30
+initial_activity_ids <- run_streams_data %>%
+  mutate(date = ymd_hms(start_date, tz = "UTC")) %>%
+  group_by(activity_id) %>%
+  summarise(max_date = max(date, na.rm = TRUE), .groups = "drop") %>%
+  arrange(desc(max_date)) %>%
+  head(initial_n_activities) %>%
+  .$activity_id
+
+run_streams_data <- run_streams_data %>%
+  filter(activity_id %in% initial_activity_ids)
+
+# Calculate date range for slider
+all_dates <- run_streams_data %>%
+  mutate(date = ymd_hms(start_date, tz = "UTC")) %>%
+  group_by(activity_id) %>%
+  summarise(max_date = max(date, na.rm = TRUE), .groups = "drop") %>%
+  .$max_date
+
+min_session_date <- min(all_dates, na.rm = TRUE) %>% as.Date() %>% floor_date(unit = "week", week_start = 1)
+max_session_date <- max(all_dates, na.rm = TRUE) %>% as.Date() %>% ceiling_date(unit = "week", week_start = 1)
+
+# Default: Monday of 4 weeks ago (or database min if more recent)
+default_min_date <- (today() - weeks(4)) %>% floor_date(unit = "week", week_start = 1)
+default_min_date <- max(default_min_date, min_session_date)
+
 # UI
 ui <- fluidPage(
   titlePanel("Running Data Visualization - Speed vs Heart Rate"),
@@ -25,6 +52,14 @@ ui <- fluidPage(
                    value = 7,
                    min = 1,
                    max = 365),
+
+      sliderInput("min_session_date",
+                  "Minimum Session Date:",
+                  min = as.Date(min_session_date),
+                  max = as.Date(max_session_date),
+                  value = as.Date(default_min_date),
+                  step = 7,
+                  timeFormat = "%Y-%m-%d"),
 
       h4("Speed Settings"),
       numericInput("min_speed",
@@ -50,6 +85,10 @@ ui <- fluidPage(
       checkboxInput("reverse_y",
                     "Reverse Y-axis",
                     value = TRUE),
+
+      checkboxInput("show_quantiles",
+                    "Show Q1, Median, Q3 lines",
+                    value = FALSE),
 
       numericInput("max_points",
                    "Max Points (for rendering):",
@@ -137,38 +176,48 @@ server <- function(input, output, session) {
       # Clean up
       unlink(temp_file)
 
-      # Reload the database file (it was updated by iter2.r)
-      new_data <- local({
+      # Reload the full database file (updated by iter2.r - keeps all fetched data)
+      full_data <- local({
         load(db_file)
         run_streams_data
       })
 
-      # If user decreased n_activities, trim the database to only keep the most recent N
-      if (input$n_activities < current_n_activities) {
-        # Get the N most recent activities by date
-        recent_activity_ids <- new_data %>%
-          mutate(date = ymd_hms(start_date, tz = "UTC")) %>%
-          group_by(activity_id) %>%
-          summarise(max_date = max(date, na.rm = TRUE), .groups = "drop") %>%
-          arrange(desc(max_date)) %>%
-          head(input$n_activities) %>%
-          .$activity_id
+      # Filter to N most recent activities for display (don't modify saved database)
+      recent_activity_ids <- full_data %>%
+        mutate(date = ymd_hms(start_date, tz = "UTC")) %>%
+        group_by(activity_id) %>%
+        summarise(max_date = max(date, na.rm = TRUE), .groups = "drop") %>%
+        arrange(desc(max_date)) %>%
+        head(input$n_activities) %>%
+        .$activity_id
 
-        new_data <- new_data %>%
-          filter(activity_id %in% recent_activity_ids)
+      filtered_data <- full_data %>%
+        filter(activity_id %in% recent_activity_ids)
 
-        # Save the trimmed database back
-        run_streams_data <- new_data
-        save(run_streams_data, file = db_file)
-      }
+      # Update reactive value with filtered data (for display)
+      db_data(filtered_data)
 
-      db_data(new_data)
+      # Update slider date range based on filtered data
+      all_dates <- filtered_data %>%
+        mutate(date = ymd_hms(start_date, tz = "UTC")) %>%
+        group_by(activity_id) %>%
+        summarise(max_date = max(date, na.rm = TRUE), .groups = "drop") %>%
+        .$max_date
+
+      new_min_date <- min(all_dates, na.rm = TRUE) %>% as.Date() %>% floor_date(unit = "week", week_start = 1)
+      new_max_date <- max(all_dates, na.rm = TRUE) %>% as.Date() %>% ceiling_date(unit = "week", week_start = 1)
+
+      # Update slider
+      updateSliderInput(session, "min_session_date",
+                       min = new_min_date,
+                       max = new_max_date,
+                       value = max((today() - weeks(4)) %>% floor_date(unit = "week", week_start = 1), new_min_date))
 
       removeModal()
       showModal(modalDialog(
         title = "Success",
-        sprintf("Database updated! Now has %d activities.",
-                length(unique(new_data$activity_id))),
+        sprintf("Database updated! Now displaying %d activities.",
+                length(unique(filtered_data$activity_id))),
         easyClose = TRUE
       ))
 
@@ -197,6 +246,22 @@ server <- function(input, output, session) {
           date = ymd_hms(start_date, tz = "UTC")
         ) %>%
         filter(!is.na(speed_ms), !is.na(hr), !is.na(date))
+
+      # Filter by minimum session date
+      min_date_filter <- ymd(input$min_session_date, tz = "UTC")
+      data_all <- data_all %>%
+        group_by(activity_id) %>%
+        filter(any(date >= min_date_filter)) %>%
+        ungroup()
+
+      # Add noise to old watch data (before 2025-04-14)
+      old_watch_cutoff <- ymd("2025-04-14", tz = "UTC")
+      data_all <- data_all %>%
+        mutate(
+          speed_ms = ifelse(date < old_watch_cutoff,
+                           speed_ms + rnorm(n(), 0, 0.15),
+                           speed_ms)
+        )
 
       # Convert speed to km/h
       data_all$speed_kmh <- data_all$speed_ms * 3.6
@@ -316,11 +381,29 @@ server <- function(input, output, session) {
           slice(seq(1, n(), by = nth))
       }
 
-      incProgress(0.1, detail = "Done!")
+      incProgress(0.05, detail = "Calculating quantiles")
+
+      # Calculate quantiles per period if requested
+      quantiles_data <- NULL
+      if (input$show_quantiles && !is.null(data_trf) && nrow(data_trf) > 0) {
+        quantiles_data <- data_trf %>%
+          group_by(period) %>%
+          summarise(
+            p10 = quantile(speed, 0.10, na.rm = TRUE),
+            q1 = quantile(speed, 0.25, na.rm = TRUE),
+            median = quantile(speed, 0.5, na.rm = TRUE),
+            q3 = quantile(speed, 0.75, na.rm = TRUE),
+            p90 = quantile(speed, 0.90, na.rm = TRUE),
+            .groups = "drop"
+          )
+      }
+
+      incProgress(0.05, detail = "Done!")
 
       # Return list with data and metadata
       list(
         data = data_trf,
+        quantiles = quantiles_data,
         min_date = min_date,
         max_date = max_date,
         n_periods = n_periods,
@@ -354,7 +437,7 @@ server <- function(input, output, session) {
     p <- ggplot(data_trf, aes(x = act_x, y = speed,
                               group = paste0(speed, period),
                               color = hr)) +
-      geom_point(alpha = 0.2) +
+      geom_point(alpha = 0.33) +
       theme_minimal() +
       scale_colour_gradient2(low = "blue", mid = "green", high = "red",
                              limits = c(120, 190),
@@ -366,6 +449,21 @@ server <- function(input, output, session) {
            color = "Heart Rate") +
       theme(legend.position = "bottom",
             text = element_text(size = 12))
+
+    # Add quantile lines if requested
+    if (input$show_quantiles && !is.null(pd$quantiles)) {
+      p <- p +
+        geom_line(data = pd$quantiles, aes(x = period, y = p10, group = 1),
+                  color = "black", linetype = "dotted", size = 0.6, inherit.aes = FALSE) +
+        geom_line(data = pd$quantiles, aes(x = period, y = q1, group = 1),
+                  color = "black", linetype = "dashed", size = 0.8, inherit.aes = FALSE) +
+        geom_line(data = pd$quantiles, aes(x = period, y = median, group = 1),
+                  color = "black", linetype = "solid", size = 1, inherit.aes = FALSE) +
+        geom_line(data = pd$quantiles, aes(x = period, y = q3, group = 1),
+                  color = "black", linetype = "dashed", size = 0.8, inherit.aes = FALSE) +
+        geom_line(data = pd$quantiles, aes(x = period, y = p90, group = 1),
+                  color = "black", linetype = "dotted", size = 0.6, inherit.aes = FALSE)
+    }
 
     # Reverse y-axis if requested
     if (input$reverse_y) {
